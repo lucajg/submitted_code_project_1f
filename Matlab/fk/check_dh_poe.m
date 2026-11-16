@@ -87,7 +87,7 @@ end
 function check_urdf_source(model)
 % Check the transcription against the supplied file without changing it.
 matlab_root = fileparts(fileparts(mfilename('fullpath')));
-document = xmlread(fullfile(matlab_root,'data','CuRo6R.urdf'));
+document = xmlread(fullfile(matlab_root,'models','CuRo6R.urdf'));
 joints = document.getElementsByTagName('joint');
 names = cell(1,joints.getLength);
 for k = 1:numel(names)

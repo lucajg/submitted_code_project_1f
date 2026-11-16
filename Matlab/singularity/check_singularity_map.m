@@ -36,13 +36,20 @@ assert(max_step < .05,'Solution IDs jumped along a regular path.');
 
 % Wrist-center critical values are independent of base angle and wrist joints.
 map = singularity_map_data(poe,241);
-% Check signed shading against independent DH wrist-center Jacobians.
+% Check signed shading against the report's closed-form arm determinant.
+a1 = dh.a(1); a2 = dh.a(2);
+d2 = dh.d(2); d3 = dh.d(3); d4 = dh.d(4);
 for row = [37,121,205]
     for column = [19,97,181]
         q = [.4;map.angles(column);map.angles(row);.7;-.6;-.3];
-        J = dh_jacobian(q,0,5,dh);
+        F1 = a2+d4*cos(q(3));
+        X = F1*cos(q(2))+d3*sin(q(2));
+        D = -F1*sin(q(2))+d3*cos(q(2));
+        expected = -d4/2*(a1*D*cos(q(3))-sqrt(3)*a1*F1*sin(q(3)) ...
+            -sqrt(3)*X*(a2*sin(q(3))-d2*cos(q(3))));
+        J = poe_jacobian(q,0,5,poe);
         arm_det = map.arm_det(row,column);
-        assert(abs(arm_det-det(J(1:3,1:3))) < 1e-10);
+        assert(abs(arm_det-expected) < 1e-10);
         assert(abs(det(J)+sin(q(5))*arm_det) < 1e-10);
     end
 end

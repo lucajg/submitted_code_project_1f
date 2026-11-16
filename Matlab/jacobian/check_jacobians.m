@@ -1,5 +1,5 @@
 function check_jacobians(include_symbolic)
-% Compare DH/PoE, finite differences, and optionally exact symbolic results.
+% Validate PoE Jacobians against differentiated DH FK and symbolic identities.
 if nargin == 0
     include_symbolic = true;
 end
@@ -13,7 +13,6 @@ geometries = {g,custom};
 stream = RandStream('mt19937ar','Seed',42);
 Q = [zeros(6,1), (pi/2)*eye(6), -(pi/2)*eye(6), ...
     [20;-35;50;15;-40;60]*pi/180, -pi+2*pi*rand(stream,6,100)];
-max_error = 0;
 max_fd = 0;
 
 for geometry = 1:numel(geometries)
@@ -21,34 +20,23 @@ for geometry = 1:numel(geometries)
     poe = poe_data(geometries{geometry});
     for sample = 1:size(Q,2)
         q = Q(:,sample);
+        [~,~,~,T0] = dh_fk(q,dh);
         for point = [5,6]
+            % Differentiate the independent DH forward model in base axes.
+            Jfd = finite_difference(q,point,dh);
             for frame = 0:6
-                Jdh = dh_jacobian(q,frame,point,dh);
-                Jpoe = poe_jacobian(q,frame,point,poe);
-                % Both frames follow the same PoE prefix; their relative
-                % rotation is the constant home-frame rotation.
+                % Recover physical link axes from DH frame axes and their
+                % constant home alignment, without using PoE FK for this check.
                 C = poe.R_home(:,:,frame+1).'*dh.R_home(:,:,frame+1);
-                max_error = max(max_error,norm(blkdiag(C,C)*Jdh-Jpoe,'fro'));
+                R = T0(1:3,1:3,frame+1)*C.';
+                J = poe_jacobian(q,frame,point,poe);
+                max_fd = max(max_fd,norm(J-blkdiag(R.',R.')*Jfd,'fro'));
             end
         end
     end
     q = Q(:,14);
     for point = [5,6]
-        Jdh = dh_jacobian(q,0,point,dh);
-        Jpoe = poe_jacobian(q,0,point,poe);
-        assert(isequal(Jdh,dh_jacobian(q.',0,point,dh)));
-        assert(isequal(Jpoe,poe_jacobian(q.',0,point,poe)));
-        Jfd = finite_difference(q,point,dh);
-        [~,~,~,T0] = dh_fk(q,dh);
-        for frame = 0:6
-            R = T0(1:3,1:3,frame+1);
-            J = dh_jacobian(q,frame,point,dh);
-            max_fd = max(max_fd,norm(J-blkdiag(R.',R.')*Jfd,'fro'));
-            C = poe.R_home(:,:,frame+1).'*dh.R_home(:,:,frame+1);
-            J = poe_jacobian(q,frame,point,poe);
-            Rpoe = R*C.';
-            max_fd = max(max_fd,norm(J-blkdiag(Rpoe.',Rpoe.')*Jfd,'fro'));
-        end
+        assert(isequal(poe_jacobian(q,0,point,poe),poe_jacobian(q.',0,point,poe)));
     end
     J = poe_jacobian(q,3,5,poe);
     assert(norm(J(1:3,4:6),'fro') < 1e-10);
@@ -61,9 +49,8 @@ for geometry = 1:numel(geometries)
     end
     assert(norm(poe_fk(q,poe)-F*poe.M,'fro') < 1e-10);
 end
-assert(max_error < 1e-10,'Numerical DH/PoE Jacobians disagree.');
-assert(max_fd < 1e-7,'Jacobian disagrees with differentiated forward kinematics.');
-fprintf('Jacobian DH-PoE after frame conversion: %.3e; finite differences: %.3e.\n',max_error,max_fd);
+assert(max_fd < 1e-7,'PoE Jacobian disagrees with differentiated DH forward kinematics.');
+fprintf('PoE Jacobian vs finite differences of DH FK: %.3e.\n',max_fd);
 fprintf('%d configurations, two geometries, points 5/6, frames 0:6.\n',size(Q,2));
 
 if include_symbolic
@@ -91,38 +78,31 @@ gs = robot_dimensions(true);
 qs = sym('q',[6,1],'real');
 fields = struct2cell(gs);
 parameters = vertcat(fields{:});
-dh = dh_data(gs);
 poe = poe_data(gs);
 syms a1 a2 d1 d2 d3 d4 d6 real
-dh_ad = dh;
-dh_ad.a = [a1,a2,0,0,0,0];
-dh_ad.d = [d1,d2,d3,d4,0,d6];
 cases = [0,6; 0,5; 3,5];
 max_error = 0;
 for c = 1:size(cases,1)
     frame = cases(c,1);
     point = cases(c,2);
-    Jdh = simplify(dh_jacobian(qs,frame,point,dh));
     Jpoe = simplify(poe_jacobian(qs,frame,point,poe));
-    C = simplify(poe.R_home(:,:,frame+1).'*dh.R_home(:,:,frame+1));
-    difference = simplify(expand(blkdiag(C,C)*Jdh-Jpoe));
-    assert(isequal(difference,sym(zeros(6))), ...
-        'Symbolic DH/PoE mismatch for frame %d, point %d.',frame,point);
-    fprintf('Symbolic DH-PoE: frame %d, point %d agree after frame conversion.\n',frame,point);
+    Jpoe_ad = dh_parameter_form(Jpoe);
     if frame == 3 && point == 5
         B = [1,0,cos(qs(5)); 0,-sin(qs(4)),cos(qs(4))*sin(qs(5)); ...
              0,cos(qs(4)),sin(qs(4))*sin(qs(5))];
         assert(isequal(simplify(Jpoe(1:3,4:6)),sym(zeros(3))));
         assert(isequal(simplify(expand(Jpoe(4:6,4:6)-B)),sym(zeros(3))));
         assert(isequal(simplify(expand(det(Jpoe(4:6,4:6))+sin(qs(5)))),sym(0)));
+        % Check the report's arm determinant in its a/d notation.
+        F1 = a2+d4*cos(qs(3));
+        X = F1*cos(qs(2))+d3*sin(qs(2));
+        D = -F1*sin(qs(2))+d3*cos(qs(2));
+        arm_det = -d4/2*(a1*D*cos(qs(3))-sqrt(sym(3))*a1*F1*sin(qs(3)) ...
+            -sqrt(sym(3))*X*(a2*sin(qs(3))-d2*cos(qs(3))));
+        assert(isequal(simplify(expand(det(Jpoe_ad(1:3,1:3))-arm_det)),sym(0)), ...
+            'Symbolic arm determinant disagrees with the report.');
     end
-    Jdh_ad = dh_parameter_form(Jdh);
-    Jpoe_ad = dh_parameter_form(Jpoe);
-    Jdirect = dh_jacobian(qs,frame,point,dh_ad);
-    assert(isequal(simplify(expand(Jdh_ad-Jdirect)),sym(zeros(6))));
-    assert(isequal(simplify(expand(Jpoe_ad-blkdiag(C,C)*Jdirect)),sym(zeros(6))));
-    evaluate_ad = matlabFunction(Jdh_ad,'Vars',{qs,[a1;a2;d1;d2;d3;d4;d6]});
-    evaluate_dh = matlabFunction(Jdh,'Vars',{qs,parameters});
+    evaluate_ad = matlabFunction(Jpoe_ad,'Vars',{qs,[a1;a2;d1;d2;d3;d4;d6]});
     evaluate_poe = matlabFunction(Jpoe,'Vars',{qs,parameters});
     for geometry = 1:numel(geometries)
         values = cell2mat(struct2cell(geometries{geometry}));
@@ -131,14 +111,15 @@ for c = 1:size(cases,1)
         ad_values = [dh_num.a(1:2),dh_num.d([1:4,6])].';
         for sample = 1:size(Q,2)
             q = Q(:,sample);
+            J = poe_jacobian(q,frame,point,poe_num);
             max_error = max([max_error, ...
-                norm(evaluate_ad(q,ad_values)-dh_jacobian(q,frame,point,dh_num),'fro'), ...
-                norm(evaluate_dh(q,values)-dh_jacobian(q,frame,point,dh_num),'fro'), ...
-                norm(evaluate_poe(q,values)-poe_jacobian(q,frame,point,poe_num),'fro')]);
+                norm(evaluate_ad(q,ad_values)-J,'fro'), ...
+                norm(evaluate_poe(q,values)-J,'fro')]);
         end
     end
+    fprintf('Symbolic PoE and a/d parameter forms checked: frame %d, point %d.\n',frame,point);
 end
-assert(max_error < 1e-10,'Symbolic evaluation disagrees with numerical models.');
-fprintf('Symbolic vs numerical Jacobians: %.3e.\n',max_error);
-fprintf('DH parameter forms agree with direct DH derivation and numerical models.\n');
+assert(max_error < 1e-10,'Symbolic evaluation disagrees with numerical PoE Jacobians.');
+fprintf('Symbolic vs numerical PoE Jacobians: %.3e.\n',max_error);
+fprintf('Exact wrist block, wrist determinant and report arm determinant agree.\n');
 end

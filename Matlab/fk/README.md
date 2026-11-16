@@ -62,7 +62,7 @@ Before adding joint `i`'s motion, `F` contains only joints `1,...,i-1`. Its rota
 
 ## Checks
 
-The check first reads the bundled [CuRo6R.urdf](../data/CuRo6R.urdf) from `Matlab/data/` and compares the six joint placements, axes, and parent/child links with `urdf_data.m`. The path is resolved relative to the check file, so the `Matlab` folder can be submitted on its own and the check works from any current directory. A tolerance of `1e-10` permits the URDF's decimal truncation of `pi/6`; the file is never modified.
+The check first reads the bundled [CuRo6R.urdf](../models/CuRo6R.urdf) from `Matlab/models/` and compares the six joint placements, axes, and parent/child links with `urdf_data.m`. The path is resolved relative to the check file, so the `Matlab` folder can be submitted on its own and the check works from any current directory after setup. A tolerance of `1e-10` permits the URDF's decimal truncation of `pi/6`; the file is never modified.
 
 **[check_dh_poe.m](check_dh_poe.m)** rebuilds all three models and compares DH-PoE, DH-URDF, and PoE-URDF at 514 configurations. The columns of `Q` contain the home pose, 12 individual joint motions (each joint at `+pi/2` and `-pi/2`, with the others zero), one mixed pose, and 500 random joint vectors with angles between `-pi` and `pi`. A local random stream with seed 42 makes the samples repeatable without changing MATLAB's global random stream. Each loop iteration sends the same column of `Q` to all three FK functions; the third dimension of `T`, `p`, and `w` selects the model.
 
@@ -72,4 +72,4 @@ Each row of `max_error` retains the largest pose, direction, and axis-line error
 
 The check also compares shortened PoE products with independent DH FK when later angles are zero, checks each physical link orientation against a truncated URDF chain, verifies a custom tool home pose, and checks the wrist center obtained from the first three factors against DH frame 5.
 
-See the report's [FK verification](../../report/sections/fk_verification.tex).
+Section 2.3 of the accompanying report summarizes the FK verification.

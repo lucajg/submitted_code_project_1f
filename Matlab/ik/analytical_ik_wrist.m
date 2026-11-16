@@ -22,7 +22,7 @@ validateattributes(singular_tol,{'numeric'},{'scalar','real','finite','nonnegati
 R_arm = F0(1:3,1:3,end)*poe_model.M(1:3,1:3);
 R = R_arm.'*R_d;
 
-% Eq. (ik-wrist-solutions) in report/sections/analytical_ik.tex:
+% Wrist-angle recovery in Section 4.4 of the accompanying report:
 % use the same sign in all angles.
 % R = Rx(q4)*Rz(q5)*Rx(q6), so R11 = cos(q5) and eta = abs(sin(q5)).
 eta = hypot(R(2,1),R(3,1));

@@ -4,7 +4,7 @@
 
 Solve the positioning arm, wrist orientation, or complete CuRo6R tool pose, retaining the available solution branches.
 
-The active solver follows the [report's LaTeX derivation](../../report/sections/analytical_ik.tex), using a quartic in `tan(q3/2)`. The former `tan(q1/2)` implementation, its checks, and its documentation are preserved in [history/q1_quartic](history/q1_quartic/README.md). `curo6r_setup` excludes the archive from the MATLAB path.
+The solver follows Section 4 of the accompanying report, using a quartic in `tan(q3/2)` to recover the arm configurations before solving the wrist orientation.
 
 ## Files
 
@@ -14,8 +14,6 @@ The active solver follows the [report's LaTeX derivation](../../report/sections/
 | [analytical_ik_wrist.m](analytical_ik_wrist.m) | Find wrist alternatives for a prescribed arm configuration. |
 | [analytical_ik_6r.m](analytical_ik_6r.m) | Combine arm and wrist branches and verify the complete pose. |
 | [check_analytical_ik.m](check_analytical_ik.m) | Check round trips, branch completeness, singularities, and invalid targets. |
-| [Report derivation](../../report/sections/analytical_ik.tex) | Supplied derivation integrated into the current report. |
-| [history/q1_quartic](history/q1_quartic/README.md) | Historical solver and instructions for running it separately. |
 
 ## Example
 
@@ -58,7 +56,7 @@ Here `R_d` is the desired `3 x 3` orientation of `link_6` in `base_link`, checke
 
 For a regular wrist, `eta = hypot(R(2,1),R(3,1))` gives `abs(sin(q5))`. For each sign `e = +1,-1`, the supplied formulas give `q5 = atan2(e*eta,R(1,1))`, `q4 = atan2(e*R(3,1),e*R(2,1))`, and `q6 = atan2(e*R(1,3),-e*R(1,2))`. The same sign is used in all three expressions. Both branches are retained, giving up to eight isolated full-pose solutions. When `eta < 1e-6` but exceeds `singular_tol`, `q6` uses the algebraically equivalent third row of `Rx(-q4)*R`, `[0,sin(q6),cos(q6)]`. This prevents roundoff in the tiny first-row entries from corrupting the coupled wrist angles. At `q5 = 0`, only `q4 + q6` is determined; at `q5 = pi`, only `q6 - q4` is determined. The solver chooses `q4 = 0` for these singular families and solves the remaining angle. Every returned six-angle column is checked against the complete PoE tool pose, with separate position and rotation tolerances.
 
-Both solvers take a numeric rigid transform and consistent numeric models built from the same dimensions. They are specific to CuRo6R's axes and fixed tilt. The arm solver requires nonzero `a1`, `d3`, and `d4`; changing the shoulder tilt requires consistent changes to the models as well. Angles lie in `[-pi,pi]`, matching the supplied URDF limits; there is no separate custom-limit input. Unreachable targets return `zeros(3,0)` or `zeros(6,0)`. Continuous families have representative solutions rather than an exhaustive parameterization. Root finding and singularity decisions use numerical tolerances; the analytic reduction does not require a numerical IK initial guess. Raw arm column order can differ from the historical solver; the planner preserves wrist sign order, and the singularity viewer matches branch identities across updates.
+Both pose solvers take a numeric rigid transform and consistent numeric models built from the same dimensions. They are specific to CuRo6R's axes and fixed tilt. The arm solver requires nonzero `a1`, `d3`, and `d4`; changing the shoulder tilt requires consistent changes to the models as well. Angles lie in `[-pi,pi]`, matching the supplied URDF limits; there is no separate custom-limit input. Unreachable targets return `zeros(3,0)` or `zeros(6,0)`. Continuous families have representative solutions rather than an exhaustive parameterization. Root finding and singularity decisions use numerical tolerances; the analytic reduction does not require a numerical IK initial guess. Raw solver column indices are not persistent branch labels; the planner preserves wrist sign, and the singularity explorer matches branch identities across updates.
 
 Different joint vectors can reproduce the same pose, so check FK agreement rather than demanding that every solution equal `q_test`.
 
@@ -66,4 +64,4 @@ Different joint vectors can reproduce the same pose, so check FK agreement rathe
 
 **[check_analytical_ik.m](check_analytical_ik.m)** performs repeatable round trips against independent DH and URDF forward kinematics. It checks default and modified dimensions, recovery of the original regular arm and both wrist branches, `q1 = pi`, `q3 = +/-pi` and nearby roots, repeated arm roots, exact and near wrist singularities, representative solutions on the base axis, duplicate removal, the four-arm/eight-pose branch bound, unreachable targets, and rejection of non-rigid target matrices and unsupported degenerate dimensions. It also checks standalone wrist reconstruction, branch ordering, singularity flags and threshold overrides, row-vector arm inputs, and rejection of zero, scaled, and reflected rotation matrices. Run `check_analytical_ik` after running `curo6r_setup`.
 
-Run `run_checks(false,true)` to include the dependent planner and singularity-viewer checks. The report's [historical IK derivation](../../report/history/analytical_ik.tex) describes the archived `q1` method; the [current report section](../../report/sections/analytical_ik.tex) describes the active implementation.
+Run `run_checks(false,true)` to include the dependent planner and singularity-explorer checks.

@@ -1,4 +1,4 @@
-% CuRo6R joint data from Matlab/data/CuRo6R.urdf, in metres and radians.
+% CuRo6R joint data from Matlab/models/CuRo6R.urdf, in metres and radians.
 % Run urdf_data, then call urdf_fk(q, urdf_model).
 % Chain: base_link -> link_1 -> link_2 -> link_3_d3 -> link_4 -> link_5 -> link_6.
 

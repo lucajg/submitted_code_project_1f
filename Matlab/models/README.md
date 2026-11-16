@@ -8,6 +8,7 @@ Build the shared CuRo6R dimensions and the DH, PoE, and independently transcribe
 
 | File | Purpose |
 | --- | --- |
+| [CuRo6R.urdf](CuRo6R.urdf) | Supplied robot description used to verify the joint-data transcription. |
 | [robot_dimensions.m](robot_dimensions.m) | Numerical lengths or real symbolic dimension variables. |
 | [dh_data.m](dh_data.m) | Standard DH parameters, endpoint alignment, and home frame orientations. |
 | [poe_data.m](poe_data.m) | Home joint origins, screw axes, twists, and endpoint pose. |
@@ -43,8 +44,8 @@ The fixed `tool_transform` expresses endpoint frame `link_6` in DH frame 6. Thei
 
 The model also stores `R_home(:,:,f+1)`, the orientation of physical link frame `f` at home, with `base_link` in the first slice. These orientations match the URDF: frames 0 and 1 have identity orientation, and frames 2 through 6 have orientation `Rx(pi/6)`; frame 3 is `link_3_d3`. They are defined directly in `poe_data`, independently of DH. The Jacobian obtains the axes selected by `frame` by multiplying the home orientation by the rotation of the PoE partial product through joint `f`.
 
-**[urdf_data.m](urdf_data.m)** transcribes the six revolute joints from [CuRo6R.urdf](../data/CuRo6R.urdf) into `urdf_model`, with one joint per column of `xyz`, `rpy`, and `axis`. No file parsing is performed. Positions and roll-pitch-yaw angles place each joint frame relative to its parent link; axes are expressed in those local joint frames. The URDF's `0.52359877559` roll is interpreted as the intended exact `pi/6`, matching DH and PoE. The endpoint is `link_6`; `tool0` branches from `link_3_d3`, and visual/collision origins only place meshes.
+**[urdf_data.m](urdf_data.m)** transcribes the six revolute joints from the bundled [CuRo6R.urdf](CuRo6R.urdf) into `urdf_model`, with one joint per column of `xyz`, `rpy`, and `axis`. No file parsing is performed by this script; `check_dh_poe` separately verifies the transcription against the bundled file. Positions and roll-pitch-yaw angles place each joint frame relative to its parent link; axes are expressed in those local joint frames. The URDF's `0.52359877559` roll is interpreted as the intended exact `pi/6`, matching DH and PoE. The endpoint is `link_6`; `tool0` branches from `link_3_d3`, and visual/collision origins only place meshes. The supplied MATLAB code does not load those meshes.
 
 ## Checks
 
-Run `check_dh_poe` to compare all three default models. The [Jacobian checks](../jacobian/README.md#checks) and [IK checks](../ik/README.md#checks) also exercise modified dimensions. See the report's [DH derivation](../../report/sections/dh_parameters.tex) and [PoE derivation](../../report/sections/poe_model.tex).
+Run `check_dh_poe` to compare all three default models. The [Jacobian checks](../jacobian/README.md#checks) and [IK checks](../ik/README.md#checks) also exercise modified dimensions. Section 2 of the accompanying report derives the DH parameters and PoE screw axes.

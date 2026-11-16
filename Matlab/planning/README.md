@@ -4,7 +4,12 @@
 
 `path_between_to_ik_solutions` searches for another IK configuration of the starting tool pose. Each attempt interpolates the arm joints and continues the initial wrist branch while preserving tool orientation. Intermediate tool positions may move. Validation checks the dense sample grid, not the intervals between samples.
 
+Run this example from the repository root:
+
 ```matlab
+addpath('Matlab');
+curo6r_setup;
+q_start = [0.1024; -1.1124; 1.8547; -1.4399; -0.3835; -2.6486];
 [path, goal, report] = path_between_to_ik_solutions(q_start, ...
     plot_results=false, verbose=false);
 if isempty(path)
@@ -18,7 +23,7 @@ An unsuccessful search returns `path=[]` and `goal=[]`, together with the comple
 
 ## Candidate report
 
-Every row corresponds to one IK solution, in solver order. Existing `IK_index` and `Status` columns are retained.
+Every row corresponds to one IK solution, in solver order. These indices are separate from the report's arm-root labels `t1` to `t4`: each regular arm solution has two wrist alternatives.
 
 | Column | Meaning |
 | --- | --- |
